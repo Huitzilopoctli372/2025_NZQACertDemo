@@ -5,6 +5,7 @@
 This package contains everything you need to run the NZQA Certificate Generator demo.
 
 ## High Level
+
 ```mermaid
 graph TB
     Start[SQL Server Agent Job] --> BP[BuildProjects]
