@@ -4,6 +4,43 @@
 
 This package contains everything you need to run the NZQA Certificate Generator demo.
 
+```mermaid
+graph TB
+    Start[SQL Server Agent Job] --> BP[BuildProjects]
+    BP --> |Reads| SPT[dw_stage_psoda..Project]
+    BP --> |Creates| PT[Projects Table - ODS]
+    
+    Start --> BPH[BuildParentChildHierarchy]
+    BPH --> |Reads| SPG[dw_stage_psoda..Program]
+    BPH --> |Updates| PT
+    
+    PT --> CP[CleanProjects]
+    CP --> |Cleans| PT
+    
+    Start --> BB[BuildBudgets]
+    BB --> |Creates| BT[Budgets Table - ODS]
+    
+    BT --> CB[CleanBudgets]
+    CB --> |Cleans| BT
+    
+    BT --> UID[UnInflateDeliveryAmounts]
+    UID --> |Adjusts| BT
+    
+    PT --> RVC[RunValidationChecks]
+    BT --> RVC
+    RVC --> |Validates| VR[Validation Results]
+    
+    PT --> RMC[RunMismatchedFieldChecks]
+    BT --> RMC
+    RMC --> |Checks| MR[Mismatch Results]
+    
+    style PT fill:#4CAF50,stroke:#2E7D32,stroke-width:3px,color:#fff
+    style BT fill:#2196F3,stroke:#1565C0,stroke-width:3px,color:#fff
+    style Start fill:#FF9800,stroke:#E65100,stroke-width:2px,color:#fff
+    style SPT fill:#E8F5E9,stroke:#4CAF50
+    style SPG fill:#E8F5E9,stroke:#4CAF50
+```
+
 ```
 nzqa-cert-demo/
 ├── dockerfile        
