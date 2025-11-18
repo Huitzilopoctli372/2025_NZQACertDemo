@@ -44,7 +44,8 @@ graph TB
 ```
 
 
-Execution Sequence
+## Execution Sequence
+
 ```mermaid
 graph TD
     Start([SQL Server Agent Job Starts]) --> Step1
@@ -79,7 +80,8 @@ graph TD
     style Step8 fill:#F3E5F5,stroke:#9C27B0
 ```
 
-Project Pipeline
+## Project Pipeline
+
 ```mermaid
 graph TB
     subgraph "Source Layer"
@@ -122,7 +124,8 @@ graph TB
     style CP fill:#81C784,stroke:#4CAF50,stroke-width:2px
 ```
 
-Budget Pipeline
+## Budget Pipeline
+
 ```mermaid
 graph TB
     subgraph "Source Layer"
@@ -166,7 +169,8 @@ graph TB
     style UID fill:#64B5F6,stroke:#2196F3,stroke-width:2px
 ```
 
-Processing Layers
+## Processing Layers
+
 ```mermaid
 graph TB
     subgraph "Layer 1: Source Systems"
@@ -230,7 +234,8 @@ graph TB
     style T2 fill:#2196F3,stroke:#1565C0,stroke-width:3px,color:#fff
 ```
 
-Projects Field Lineage
+## Projects Field Lineage
+
 ```mermaid
 graph LR
     subgraph "Source: dw_stage_psoda..Project"
@@ -298,7 +303,8 @@ graph LR
     style TC4 fill:#4CAF50,color:#fff
 ```
 
-Budget Field Lineage
+## Budget Field Lineage
+
 ```mermaid
 graph LR
     subgraph "Source Tables"
