@@ -4,6 +4,7 @@
 
 This package contains everything you need to run the NZQA Certificate Generator demo.
 
+## High Level
 ```mermaid
 graph TB
     Start[SQL Server Agent Job] --> BP[BuildProjects]
@@ -39,6 +40,315 @@ graph TB
     style Start fill:#FF9800,stroke:#E65100,stroke-width:2px,color:#fff
     style SPT fill:#E8F5E9,stroke:#4CAF50
     style SPG fill:#E8F5E9,stroke:#4CAF50
+```
+
+
+Execution Sequence
+```mermaid
+graph TD
+    Start([SQL Server Agent Job Starts]) --> Step1
+    
+    Step1[1. BuildProjects<br/>Duration: ~2-5 min<br/>Creates Projects base] --> Step2
+    
+    Step2[2. BuildParentChildHierarchy<br/>Duration: ~1-3 min<br/>Adds hierarchy to Projects] --> Step3
+    
+    Step3[3. CleanProjects<br/>Duration: ~1-2 min<br/>Cleanses Projects data] --> Step4
+    
+    Step4[4. BuildBudgets<br/>Duration: ~3-7 min<br/>Creates Budgets base] --> Step5
+    
+    Step5[5. CleanBudgets<br/>Duration: ~1-2 min<br/>Cleanses Budgets data] --> Step6
+    
+    Step6[6. UnInflateDeliveryAmounts<br/>Duration: ~1-2 min<br/>Adjusts financial data] --> Step7
+    
+    Step7[7. RunValidationChecks<br/>Duration: ~30 sec<br/>Validates both tables] --> Step8
+    
+    Step8[8. RunMismatchedFieldChecks<br/>Duration: ~30 sec<br/>Final quality checks] --> End
+    
+    End([Job Complete<br/>Total: ~10-22 min])
+    
+    style Start fill:#FF9800,stroke:#E65100,stroke-width:2px,color:#fff
+    style End fill:#4CAF50,stroke:#2E7D32,stroke-width:2px,color:#fff
+    style Step1 fill:#E3F2FD,stroke:#2196F3
+    style Step2 fill:#E3F2FD,stroke:#2196F3
+    style Step3 fill:#E3F2FD,stroke:#2196F3
+    style Step4 fill:#FFF3E0,stroke:#FF9800
+    style Step5 fill:#FFF3E0,stroke:#FF9800
+    style Step6 fill:#FFF3E0,stroke:#FF9800
+    style Step7 fill:#F3E5F5,stroke:#9C27B0
+    style Step8 fill:#F3E5F5,stroke:#9C27B0
+```
+
+Project Pipeline
+```mermaid
+graph TB
+    subgraph "Source Layer"
+        SP[dw_stage_psoda..Project<br/>SOURCE TABLE]
+        SPG[dw_stage_psoda..Program<br/>SOURCE TABLE]
+    end
+    
+    subgraph "Transformation Layer - Projects Pipeline"
+        BP[BuildProjects<br/>STORED PROCEDURE]
+        BPH[BuildParentChildHierarchy<br/>STORED PROCEDURE]
+        CP[CleanProjects<br/>STORED PROCEDURE]
+    end
+    
+    subgraph "Target Layer"
+        PT[dw_ods20..Projects<br/>FINAL TABLE]
+    end
+    
+    subgraph "Quality Layer"
+        RVC[RunValidationChecks]
+        RMC[RunMismatchedFieldChecks]
+    end
+    
+    SP --> |INSERT INTO| BP
+    BP --> |Creates| PT
+    
+    SPG --> |UPDATE| BPH
+    BPH --> |Adds Hierarchy| PT
+    
+    PT --> |MERGE/UPDATE| CP
+    CP --> |Cleaned Data| PT
+    
+    PT --> RVC
+    PT --> RMC
+    
+    style PT fill:#4CAF50,stroke:#2E7D32,stroke-width:4px,color:#fff
+    style SP fill:#E8F5E9,stroke:#4CAF50,stroke-width:2px
+    style SPG fill:#E8F5E9,stroke:#4CAF50,stroke-width:2px
+    style BP fill:#81C784,stroke:#4CAF50,stroke-width:2px
+    style BPH fill:#81C784,stroke:#4CAF50,stroke-width:2px
+    style CP fill:#81C784,stroke:#4CAF50,stroke-width:2px
+```
+
+Budget Pipeline
+```mermaid
+graph TB
+    subgraph "Source Layer"
+        SB1[dw_stage_psoda..Project<br/>SOURCE]
+        SB2[dw_stage_psoda..Budget Data<br/>SOURCE]
+    end
+    
+    subgraph "Transformation Layer - Budget Pipeline"
+        BB[BuildBudgets<br/>STORED PROCEDURE]
+        CB[CleanBudgets<br/>STORED PROCEDURE]
+        UID[UnInflateDeliveryAmounts<br/>STORED PROCEDURE]
+    end
+    
+    subgraph "Target Layer"
+        BT[dw_ods20..Budgets<br/>FINAL TABLE]
+    end
+    
+    subgraph "Quality Layer"
+        RVC[RunValidationChecks]
+        RMC[RunMismatchedFieldChecks]
+    end
+    
+    SB1 --> |JOIN/INSERT| BB
+    SB2 --> |JOIN/INSERT| BB
+    BB --> |Creates| BT
+    
+    BT --> |MERGE/CLEAN| CB
+    CB --> |Cleaned Data| BT
+    
+    BT --> |ADJUST| UID
+    UID --> |Deflated Amounts| BT
+    
+    BT --> RVC
+    BT --> RMC
+    
+    style BT fill:#2196F3,stroke:#1565C0,stroke-width:4px,color:#fff
+    style SB1 fill:#E3F2FD,stroke:#2196F3,stroke-width:2px
+    style SB2 fill:#E3F2FD,stroke:#2196F3,stroke-width:2px
+    style BB fill:#64B5F6,stroke:#2196F3,stroke-width:2px
+    style CB fill:#64B5F6,stroke:#2196F3,stroke-width:2px
+    style UID fill:#64B5F6,stroke:#2196F3,stroke-width:2px
+```
+
+Processing Layers
+```mermaid
+graph TB
+    subgraph "Layer 1: Source Systems"
+        S1[dw_stage_psoda..Project]
+        S2[dw_stage_psoda..Program]
+        S3[dw_stage_psoda..Budget Sources]
+    end
+    
+    subgraph "Layer 2: Initial Build"
+        L2A[BuildProjects]
+        L2B[BuildBudgets]
+    end
+    
+    subgraph "Layer 3: Enrichment"
+        L3A[BuildParentChildHierarchy]
+    end
+    
+    subgraph "Layer 4: Cleansing"
+        L4A[CleanProjects]
+        L4B[CleanBudgets]
+    end
+    
+    subgraph "Layer 5: Business Rules"
+        L5A[UnInflateDeliveryAmounts]
+    end
+    
+    subgraph "Layer 6: Target Tables"
+        T1[Projects - ODS]
+        T2[Budgets - ODS]
+    end
+    
+    subgraph "Layer 7: Quality Assurance"
+        Q1[RunValidationChecks]
+        Q2[RunMismatchedFieldChecks]
+    end
+    
+    S1 --> L2A
+    S2 --> L3A
+    S3 --> L2B
+    
+    L2A --> T1
+    L2B --> T2
+    
+    L3A --> T1
+    
+    T1 --> L4A
+    T2 --> L4B
+    
+    L4A --> T1
+    L4B --> T2
+    
+    T2 --> L5A
+    L5A --> T2
+    
+    T1 --> Q1
+    T2 --> Q1
+    T1 --> Q2
+    T2 --> Q2
+    
+    style T1 fill:#4CAF50,stroke:#2E7D32,stroke-width:3px,color:#fff
+    style T2 fill:#2196F3,stroke:#1565C0,stroke-width:3px,color:#fff
+```
+
+Projects Field Lineage
+```mermaid
+graph LR
+    subgraph "Source: dw_stage_psoda..Project"
+        SC1[ProjectID]
+        SC2[ProjectName]
+        SC3[ProjectCode]
+        SC4[Status]
+        SC5[StartDate]
+        SC6[EndDate]
+    end
+    
+    subgraph "Source: dw_stage_psoda..Program"
+        PC1[ProgramID]
+        PC2[ProgramName]
+        PC3[ParentProgramID]
+    end
+    
+    subgraph "BuildProjects Transform"
+        T1[INSERT + CAST]
+        T2[String Cleaning]
+        T3[Date Formatting]
+    end
+    
+    subgraph "BuildParentChildHierarchy Transform"
+        T4[Hierarchy Calculation]
+        T5[Parent Lookup]
+    end
+    
+    subgraph "CleanProjects Transform"
+        T6[Data Quality Rules]
+        T7[Null Handling]
+    end
+    
+    subgraph "Target: dw_ods20..Projects"
+        TC1[ProjectID]
+        TC2[ProjectName]
+        TC3[ProjectCode]
+        TC4[ProjectStatus]
+        TC5[ProjectStartDate]
+        TC6[ProjectEndDate]
+        TC7[ProgramID]
+        TC8[ProgramName]
+        TC9[HierarchyLevel]
+        TC10[ParentProjectID]
+    end
+    
+    SC1 --> T1 --> TC1
+    SC2 --> T2 --> TC2
+    SC3 --> T1 --> TC3
+    SC4 --> T2 --> TC4
+    SC5 --> T3 --> TC5
+    SC6 --> T3 --> TC6
+    
+    PC1 --> T4 --> TC7
+    PC2 --> T5 --> TC8
+    PC3 --> T4 --> TC9
+    PC3 --> T5 --> TC10
+    
+    TC1 --> T6 --> TC1
+    TC2 --> T7 --> TC2
+    
+    style TC1 fill:#4CAF50,color:#fff
+    style TC2 fill:#4CAF50,color:#fff
+    style TC3 fill:#4CAF50,color:#fff
+    style TC4 fill:#4CAF50,color:#fff
+```
+
+Budget Field Lineage
+```mermaid
+graph LR
+    subgraph "Source Tables"
+        SBC1[Project.ProjectID]
+        SBC2[Budget.BudgetAmount]
+        SBC3[Budget.FiscalYear]
+        SBC4[Budget.CostCenter]
+        SBC5[Delivery.DeliveredAmount]
+        SBC6[Inflation.InflationRate]
+    end
+    
+    subgraph "BuildBudgets Transform"
+        BT1[JOIN Projects]
+        BT2[SUM Aggregation]
+        BT3[Date Calculation]
+    end
+    
+    subgraph "CleanBudgets Transform"
+        BT4[Null Replacement]
+        BT5[Validation Rules]
+    end
+    
+    subgraph "UnInflateDeliveryAmounts"
+        BT6[Inflation Adjustment]
+        BT7[Amount / 1 + Rate]
+    end
+    
+    subgraph "Target: dw_ods20..Budgets"
+        TBC1[ProjectID]
+        TBC2[TotalBudget]
+        TBC3[FiscalYear]
+        TBC4[CostCenter]
+        TBC5[DeliveredAmount]
+        TBC6[AdjustedDeliveredAmount]
+    end
+    
+    SBC1 --> BT1 --> TBC1
+    SBC2 --> BT2 --> TBC2
+    SBC3 --> BT3 --> TBC3
+    SBC4 --> BT1 --> TBC4
+    SBC5 --> BT2 --> TBC5
+    
+    TBC2 --> BT4 --> TBC2
+    TBC5 --> BT5 --> TBC5
+    
+    TBC5 --> BT6 --> TBC6
+    SBC6 --> BT7 --> TBC6
+    
+    style TBC1 fill:#2196F3,color:#fff
+    style TBC2 fill:#2196F3,color:#fff
+    style TBC6 fill:#FF9800,color:#fff
 ```
 
 ```
